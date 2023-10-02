@@ -13,6 +13,7 @@ class SortPool(torch.nn.Module):
         for i in range(num_layers - 1):
             self.convs.append(SAGEConv(hidden, hidden))
         self.pool = SortAggregation(k=30)
+        self.k = 30
         self.conv1d = Conv1d(hidden, 32, 5)
         self.lin1 = Linear(32 * (30 - 5 + 1), hidden)
         self.lin2 = Linear(hidden, dataset.num_classes)
