@@ -36,7 +36,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
 
     nodes = list()
     for i in range(len(dataset)):
-        nodes.append(dataset[i].num_nodes)
+        nodes.append(dataset[i].org_nodes)
 
     nodes.sort(reverse=True)
 
@@ -187,11 +187,9 @@ def eval_acc(model, loader, ranges):
     correct = 0
     for data in loader:
         data = data.to(device)
-        batch_data = data.to_data_list()
         with torch.no_grad():
             pred = model(data).max(1)[1]
-        for idx, graph in enumerate(batch_data):
-            num_nodes = graph.num_nodes
+        for idx, num_nodes in enumerate(data.org_nodes):
             if num_nodes in ranges["head"]:
                 graph_group = 2
             elif num_nodes in ranges["med"]:

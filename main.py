@@ -26,25 +26,25 @@ args = parser.parse_args()
 
 layers = [1, 2, 3, 4, 5]
 hiddens = [16, 32, 64, 128]
-datasets = ['PROTEINS', 'IMDB-BINARY', 'REDDIT-BINARY']  # , 'COLLAB']
+datasets = ["DD", 'PROTEINS', "FRANKENSTEIN", "PTC_MR", 'IMDB-BINARY']  # , 'COLLAB']
 nets = [
-    GCNWithJK,
-    GraphSAGEWithJK,
-    GIN0WithJK,
-    GINWithJK,
-    Graclus,
+    # GCNWithJK,
+    # GraphSAGEWithJK,
+    # GIN0WithJK,
+    # GINWithJK,
+    # Graclus,
     TopK,
-    SAGPool,
+    # SAGPool,
     DiffPool,
-    EdgePool,
+    # EdgePool,
     GCN,
     GraphSAGE,
-    GIN0,
+    # GIN0,
     GIN,
-    GlobalAttentionNet,
-    Set2SetNet,
+    # GlobalAttentionNet,
+    # Set2SetNet,
     SortPool,
-    ASAP,
+    # ASAP,
 ]
 
 
