@@ -31,7 +31,7 @@ def get_dataset(name, sparse=True, cleaned=False):
     dataset = TUDataset(path, name, transform=add_org_nodes, cleaned=cleaned)
     dataset.data.edge_attr = None
 
-    if dataset.data.x is None:
+    if dataset.data.x is None or dataset.data.x.shape[1] == 0:
         max_degree = 0
         degs = []
         for data in dataset:
@@ -39,11 +39,20 @@ def get_dataset(name, sparse=True, cleaned=False):
             max_degree = max(max_degree, degs[-1].max().item())
 
         if max_degree < 1000:
-            dataset.transform = T.OneHotDegree(max_degree)
+            if dataset.transform is not None:
+                dataset.transform = T.Compose(
+                    [dataset.transform, T.OneHotDegree(max_degree)])
+            else:
+                dataset.transform = T.OneHotDegree(max_degree)
+
         else:
             deg = torch.cat(degs, dim=0).to(torch.float)
             mean, std = deg.mean().item(), deg.std().item()
-            dataset.transform = NormalizedDegree(mean, std)
+            if dataset.transform is not None:
+                dataset.transform = T.Compose(
+                    [dataset.transform, NormalizedDegree(mean, std)])
+            else:
+                dataset.transform = NormalizedDegree(mean, std)
 
     if not sparse:
         num_nodes = max_num_nodes = 0
