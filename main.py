@@ -14,6 +14,7 @@ from sag_pool import SAGPool
 from set2set import Set2SetNet
 from sort_pool import SortPool
 from top_k import TopK
+from mixup import MixUPNet
 from train_eval import cross_validation_with_val_set
 
 parser = argparse.ArgumentParser()
@@ -26,23 +27,30 @@ args = parser.parse_args()
 
 layers = [1, 2, 3, 4, 5]
 hiddens = [16, 32, 64, 128]
-datasets = ["DD", 'PROTEINS', "FRANKENSTEIN", "PTC_MR", 'IMDB-BINARY']  # , 'COLLAB']
+datasets = [
+    "DD",
+    "PROTEINS",
+    "FRANKENSTEIN", 
+    "PTC_MR", 
+    'IMDB-BINARY'
+]  # , 'COLLAB']
 nets = [
     # GCNWithJK,
     # GraphSAGEWithJK,
     # GIN0WithJK,
     # GINWithJK,
     # Graclus,
-    TopK,
+    # TopK,
     # SAGPool,
-    DiffPool,
+    # DiffPool,
     # EdgePool,
-    GCN,
-    GraphSAGE,
+    # GCN,
+    # GraphSAGE,
     # GIN0,
-    GIN,
+    # GIN,
     # GlobalAttentionNet,
     # Set2SetNet,
+    # MixUPNet,
     SortPool,
     # ASAP,
 ]
