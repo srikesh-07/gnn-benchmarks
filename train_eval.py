@@ -33,6 +33,8 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         K = [0, 393, 785, 1178]
     elif dataset.name == "FRANKENSTEIN":
         K = [0, 1445, 2890, 4337]
+    elif dataset.name == "NCI1":
+        K = [0, 1370, 2740, 4110]
 
     nodes = list()
     for i in range(len(dataset)):
