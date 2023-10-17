@@ -1,5 +1,7 @@
 import argparse
+import os
 from itertools import product
+import pickle
 
 from asap import ASAP
 from datasets import get_dataset
@@ -25,14 +27,17 @@ parser.add_argument('--lr_decay_factor', type=float, default=0.5)
 parser.add_argument('--lr_decay_step_size', type=int, default=50)
 args = parser.parse_args()
 
-layers = [1, 2, 3, 4, 5]
-hiddens = [16, 32, 64, 128]
+# layers = [1, 2, 3, 4, 5]
+# hiddens = [16, 32, 64, 128]
+layers = [1]
+hiddens = [32, 64]
 datasets = [
     "DD",
     "PROTEINS",
-    "FRANKENSTEIN", 
-    "PTC_MR", 
-    'IMDB-BINARY'
+    "FRANKENSTEIN",
+    "PTC_MR",
+    'IMDB-BINARY',
+    'NCI1'
 ]  # , 'COLLAB']
 nets = [
     # GCNWithJK,
@@ -47,11 +52,11 @@ nets = [
     # GCN,
     # GraphSAGE,
     # GIN0,
-    # GIN,
+    GIN,
     # GlobalAttentionNet,
     # Set2SetNet,
     # MixUPNet,
-    SortPool,
+    # SortPool,
     # ASAP,
 ]
 
@@ -68,13 +73,15 @@ def logger(info):
 
 
 results = []
+os.makedirs("output", exist_ok=True)
 for dataset_name, Net in product(datasets, nets):
     best_result = (float('inf'), 0, 0)  # (loss, acc, std)
     print(f'--\n{dataset_name} - {Net.__name__}')
+    os.makedirs(os.path.join("output", dataset_name), exist_ok=True)
     for num_layers, hidden in product(layers, hiddens):
         dataset = get_dataset(dataset_name, sparse=Net != DiffPool)
         model = Net(dataset, num_layers, hidden)
-        loss, acc, std, head_acc, head_std, med_acc, med_std, tail_acc, tail_std = cross_validation_with_val_set(
+        loss, acc, std, head_acc, head_std, med_acc, med_std, tail_acc, tail_std, viz = cross_validation_with_val_set(
             dataset,
             model,
             folds=5,
@@ -100,6 +107,9 @@ for dataset_name, Net in product(datasets, nets):
                            f"Tail Mean: {round(tail_acc, 4)}, \n"
                            f"Std Tail Mean: {round(tail_std, 4)} \n\n"
                            )
+        with open(os.path.join("output", dataset_name, f"{Net.__name__.lower()}_{num_layers}_{hidden}.pkl"), 'wb') as pkl_file:
+            pickle.dump(viz, pkl_file)
+
         if loss < best_result[0]:
             best_result = (loss, acc, std, head_acc, head_std, med_acc, med_std, tail_acc, tail_std)
 

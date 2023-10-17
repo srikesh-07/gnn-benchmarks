@@ -22,6 +22,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
                                   weight_decay, logger=None):
 
     val_losses, accs, head_accs, med_accs, tail_accs, durations = [], [], [], [], [], []
+    out = []
 
     if dataset.name == "PROTEINS":
         K = [0, 371, 742, 1113]
@@ -78,15 +79,21 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         #         pass
 
         t_start = time.perf_counter()
+        sizes, truths, preds = [], [], []
 
         for epoch in range(1, epochs + 1):
             train_loss = train(model, optimizer, train_loader)
             val_losses.append(eval_loss(model, val_loader))
-            temp_acc, temp_head, temp_med, temp_tail = eval_acc(model, test_loader, ranges)
+            (temp_acc, temp_head, temp_med, temp_tail), (node_sizes, grd_truth, m_preds) = eval_acc(model, test_loader, ranges)
             accs.append(temp_acc)
             head_accs.append(temp_head)
             med_accs.append(temp_med)
             tail_accs.append(temp_tail)
+
+            sizes.append(node_sizes.to(torch.long).tolist())
+            truths.append(grd_truth.to(torch.long).tolist())
+            preds.append(m_preds.to(torch.long).tolist())
+
             eval_info = {
                 'fold': fold,
                 'epoch': epoch,
@@ -105,6 +112,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = lr_decay_factor * param_group['lr']
 
+        out.append((sizes, truths, preds))
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         elif hasattr(torch.backends,
@@ -116,13 +124,32 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
     head_acc, med_acc, tail_acc = tensor(head_accs), tensor(med_accs), tensor(tail_accs)
+
+    # sizes, truths, preds = torch.Tensor(sizes), torch.Tensor(truths), torch.Tensor(preds)
+    # sizes = torch.stack(sizes, dim=0)
+    # print(sizes.shape)
+    # sizes, truths, preds = sizes.view(folds, epochs), truths.view(folds, epochs), preds.view(folds, epochs)
+
     loss, acc = loss.view(folds, epochs), acc.view(folds, epochs)
     head_acc, med_acc, tail_acc = head_acc.view(folds, epochs), med_acc.view(folds, epochs), tail_acc.view(folds, epochs)
+
     loss, argmin = loss.min(dim=1)
     acc = acc[torch.arange(folds, dtype=torch.long), argmin]
     head_acc = head_acc[torch.arange(folds, dtype=torch.long), argmin]
     med_acc = med_acc[torch.arange(folds, dtype=torch.long), argmin]
     tail_acc = tail_acc[torch.arange(folds, dtype=torch.long), argmin]
+
+    # sizes = sizes[torch.arange(folds, dtype=torch.long), argmin]
+    # truths = truths[torch.arange(folds, dtype=torch.long), argmin]
+    # preds = preds[torch.arange(folds, dtype=torch.long), argmin]
+    out_sizes = list()
+    out_truth = list()
+    out_preds = list()
+    assert len(out) == len(argmin.tolist())
+    for (node_sizes, grd_truth, m_preds), idx in zip(out, argmin.tolist()):
+        out_sizes.append(node_sizes[idx])
+        out_truth.append(grd_truth[idx])
+        out_preds.append(m_preds[idx])
 
     loss_mean = loss.mean().item()
     acc_mean = acc.mean().item()
@@ -138,7 +165,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
           f'± {acc_std:.3f}, Duration: {duration_mean:.3f}')
 
     return loss_mean, acc_mean, acc_std, head_acc_mean, head_acc_std, med_acc_mean, med_acc_std, tail_acc_mean, \
-        tail_acc_std
+        tail_acc_std, {"node_sizes": out_sizes, "ground_truth": out_truth, "prediction": out_preds}
 
 
 def k_fold(dataset, folds):
@@ -185,8 +212,15 @@ def eval_acc(model, loader, ranges):
     model.eval()
     graph_correct = {0: 0, 1: 0, 2: 0}
     total_graphs = {0: 0, 1: 0, 2: 0}
+    # num_splits = 10
+
+    size = len(loader.dataset)
+    node_sizes = torch.zeros(size)
+    preds = torch.zeros(size)
+    grd_truth = torch.zeros(size)
 
     correct = 0
+    new_idx = 0
     for data in loader:
         data = data.to(device)
         with torch.no_grad():
@@ -203,11 +237,71 @@ def eval_acc(model, loader, ranges):
             if pred[idx].cpu().item() == data.y[idx].cpu().item():
                 graph_correct[graph_group] += 1
             total_graphs[graph_group] += 1
+            node_sizes[new_idx] = num_nodes
+            preds[new_idx] = pred[idx]
+            grd_truth[new_idx] = data.y[idx]
+            new_idx += 1
         correct += pred.eq(data.y.view(-1)).sum().item()
+
+    # print(node_sizes)
+
+    # _, indices = torch.sort(node_sizes)
+    # accs = list()
+    # start = 0
+    # for i in range(len(indices) // num_splits, len(indices), len(indices) // num_splits):
+    #     split_indices = indices[start: i]
+    #     acc = preds[split_indices].eq(grd_truth[split_indices]).sum().item() / len(split_indices)
+    #     accs.append(acc)
+    # else:
+    #     if end != len():
+    #             indices = (node_sizes >= start).nonzero()
+    #             if len(indices) == 0:
+    #                 accs.append(0)
+    #             else:
+    #                 acc = preds[indices].eq(grd_truth[indices]).sum().item() / len(indices)
+    #                 accs.append(round(acc, 4))
+
+    # max_size = torch.max(node_sizes).cpu().item()
+    # min_size = torch.min(node_sizes).cpu().item()
+    #
+    # start = min_size
+    # inc = (max_size - min_size) // 5
+    # end = start + inc
+    # # print(max_size, min_size)
+    # # print(max_size)
+    # # print(start, end)
+    # accs = list()
+    # count = list()
+    #
+    #
+    # while end < max_size:
+    #     indices = (torch.logical_and(node_sizes >= start, node_sizes < end)).nonzero().squeeze()
+    #     if not len(indices.size()) or indices.size()[0] == 0:
+    #         accs.append(0)
+    #         count.append(0)
+    #     else:
+    #         acc = preds[indices].eq(grd_truth[indices]).sum().item() / len(indices)
+    #         accs.append(round(acc, 4))
+    #         count.append(len(indices))
+    #     start = end
+    #     end += inc
+    # else:
+    #     if end != max_size:
+    #         indices = (node_sizes >= start).nonzero()
+    #         if len(indices) == 0:
+    #             accs.append(0)
+    #         else:
+    #             acc = preds[indices].eq(grd_truth[indices]).sum().item() / len(indices)
+    #             accs.append(round(acc, 4))
+    # print(accs)
+    assert len(node_sizes) == len(loader.dataset)
+    assert len(grd_truth) == len(loader.dataset)
+    assert len(preds) == len(loader.dataset)
+
     return (correct / len(loader.dataset),
             graph_correct[2] / total_graphs[2],
             graph_correct[1] / total_graphs[1],
-            graph_correct[0] / total_graphs[0])
+            graph_correct[0] / total_graphs[0]), (node_sizes, grd_truth, preds)
 
 
 def eval_loss(model, loader):
