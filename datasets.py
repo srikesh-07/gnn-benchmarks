@@ -7,6 +7,7 @@ import torch_geometric.data
 import torch_geometric.transforms as T
 from torch_geometric.datasets import TUDataset
 from torch_geometric.utils import degree
+from ogb.graphproppred import PygGraphPropPredDataset
 
 
 class NormalizedDegree:
@@ -23,12 +24,28 @@ class NormalizedDegree:
 
 def add_org_nodes(data: torch_geometric.data.Data):
     data.org_nodes = torch.tensor(data.num_nodes, dtype=torch.long)
+    data.x = data.x.to(torch.float32)
     return data
 
+def check_ogb(name, path, cleaned=False):
+    if name.startswith('ogbg'):
+        if not name.endswith('molhiv'):
+            raise ValueError(f"Invalid dataset - {name}, which doesn't support classification")
+        dataset = PygGraphPropPredDataset(name=name, root=path, transform=add_org_nodes)
+    else:
+        dataset = TUDataset(path, name, transform=add_org_nodes, cleaned=cleaned)
+    return dataset
+        
 
 def get_dataset(name, sparse=True, cleaned=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
-    dataset = TUDataset(path, name, transform=add_org_nodes, cleaned=cleaned)
+    dataset = check_ogb(name, path)
+
+    if isinstance(dataset, PygGraphPropPredDataset):
+        dataset.data.edge_attr = None
+        print(f"[INFO] {name} dataset selected.")
+        return dataset
+
     dataset.data.edge_attr = None
 
     if dataset.data.x is None or dataset.data.x.shape[1] == 0:
