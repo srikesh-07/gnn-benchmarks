@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from sklearn.model_selection import StratifiedKFold
 from torch import tensor
 from torch.optim import Adam
+from tqdm import tqdm
 
 import torch
 from torch_geometric.loader import DataLoader
@@ -35,6 +36,11 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         K = [0, 1445, 2890, 4337]
     elif dataset.name == "NCI1":
         K = [0, 1370, 2740, 4110]
+    else:
+        print(f"['INFO'] Total number of Graphs: {len(dataset)}")
+        split = len(dataset) // 3
+        K = [0, split, split * 2, len(dataset)]
+        print(f"['INFO'] THe Graph split is: {K}")
 
     nodes = list()
     for i in range(len(dataset)):
@@ -79,7 +85,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
 
         t_start = time.perf_counter()
 
-        for epoch in range(1, epochs + 1):
+        for epoch in tqdm(range(1, epochs + 1)):
             train_loss = train(model, optimizer, train_loader)
             val_losses.append(eval_loss(model, val_loader))
             temp_acc, temp_head, temp_med, temp_tail = eval_acc(model, test_loader, ranges)
