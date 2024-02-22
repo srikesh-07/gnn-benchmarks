@@ -25,32 +25,39 @@ parser.add_argument('--lr_decay_factor', type=float, default=0.5)
 parser.add_argument('--lr_decay_step_size', type=int, default=50)
 args = parser.parse_args()
 
-layers = [1, 2, 3, 4, 5]
-hiddens = [16, 32, 64, 128]
+# layers = [1, 2, 3, 4, 5]
+# hiddens = [16, 32, 64, 128]
+layers = [2]
+hiddens = [64]
 datasets = [
     "DD",
     "PROTEINS",
     "FRANKENSTEIN", 
     "PTC_MR", 
     'IMDB-BINARY'
+    'COLLAB',
+    'obgb-molhiv'
 ]  # , 'COLLAB']
+
+
 nets = [
     # GCNWithJK,
     # GraphSAGEWithJK,
     # GIN0WithJK,
     # GINWithJK,
     # Graclus,
-    # TopK,
+    GCN,
+    TopK,
     # SAGPool,
-    # DiffPool,
-    # EdgePool,
+    DiffPool,
+    EdgePool,
     # GCN,
-    # GraphSAGE,
+    GraphSAGE,
     # GIN0,
-    # GIN,
+    GIN,
     # GlobalAttentionNet,
     # Set2SetNet,
-    # MixUPNet,
+    MixUPNet,
     SortPool,
     # ASAP,
 ]
