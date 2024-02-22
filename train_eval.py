@@ -9,6 +9,7 @@ from tqdm import tqdm
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.loader import DenseDataLoader as DenseLoader
+from categorizer import GraphCategorizer
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -24,35 +25,41 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
 
     val_losses, accs, head_accs, med_accs, tail_accs, durations = [], [], [], [], [], []
 
-    if dataset.name == "PROTEINS":
-        K = [0, 371, 742, 1113]
-    elif dataset.name == "PTC_MR":
-        K = [0, 115, 230, 344]
-    elif dataset.name == "IMDB-BINARY":
-        K = [0, 333, 666, 1000]
-    elif dataset.name == "DD":
-        K = [0, 393, 785, 1178]
-    elif dataset.name == "FRANKENSTEIN":
-        K = [0, 1445, 2890, 4337]
-    elif dataset.name == "NCI1":
-        K = [0, 1370, 2740, 4110]
-    else:
-        print(f"['INFO'] Total number of Graphs: {len(dataset)}")
-        split = len(dataset) // 3
-        K = [0, split, split * 2, len(dataset)]
-        print(f"['INFO'] THe Graph split is: {K}")
+    # if dataset.name == "PROTEINS":
+    #     K = [0, 371, 742, 1113]
+    # elif dataset.name == "PTC_MR":
+    #     K = [0, 115, 230, 344]
+    # elif dataset.name == "IMDB-BINARY":
+    #     K = [0, 333, 666, 1000]
+    # elif dataset.name == "DD":
+    #     K = [0, 393, 785, 1178]
+    # elif dataset.name == "FRANKENSTEIN":
+    #     K = [0, 1445, 2890, 4337]
+    # elif dataset.name == "NCI1":
+    #     K = [0, 1370, 2740, 4110]
+    # else:
+    #     print(f"['INFO'] Total number of Graphs: {len(dataset)}")
+    #     split = len(dataset) // 3
+    #     K = [0, split, split * 2, len(dataset)]
+    #     print(f"['INFO'] THe Graph split is: {K}")
 
     nodes = list()
     for i in range(len(dataset)):
-        nodes.append(dataset[i].org_nodes)
+        nodes.append(dataset[i].org_nodes.item())
 
-    nodes.sort(reverse=True)
+    # nodes.sort(reverse=True)
 
-    ranges = dict()
+    # ranges = dict()
 
-    ranges["head"] = list(set(nodes[K[0]:K[1]]))
-    ranges["med"] = list(set(nodes[K[1]:K[2]]))
-    ranges["tail"] = list(set(nodes[K[2]:K[3]]))
+    # ranges["head"] = list(set(nodes[K[0]:K[1]]))
+    # ranges["med"] = list(set(nodes[K[1]:K[2]]))
+    # ranges["tail"] = list(set(nodes[K[2]:K[3]]))
+    split = GraphCategorizer(nodes=nodes)
+    print("NUM HEAD GRAPHS: ", split.num_head_graphs)
+    print("NUM MED GRAPHS: ", split.num_med_graphs)
+    print("NUM TAIL GRAPHS: ", split.num_tail_graphs)
+    print("SIZE RANGES: ", split.size_ranges)
+
 
     for fold, (train_idx, test_idx,
                val_idx) in enumerate(zip(*k_fold(dataset, folds))):
@@ -88,7 +95,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         for epoch in tqdm(range(1, epochs + 1)):
             train_loss = train(model, optimizer, train_loader)
             val_losses.append(eval_loss(model, val_loader))
-            temp_acc, temp_head, temp_med, temp_tail = eval_acc(model, test_loader, ranges)
+            temp_acc, temp_head, temp_med, temp_tail = eval_acc(model, test_loader, split.size_ranges)
             accs.append(temp_acc)
             head_accs.append(temp_head)
             med_accs.append(temp_med)
@@ -197,18 +204,35 @@ def eval_acc(model, loader, ranges):
         data = data.to(device)
         with torch.no_grad():
             pred = model(data).max(1)[1]
-        for idx, num_nodes in enumerate(data.org_nodes):
-            if num_nodes in ranges["head"]:
-                graph_group = 2
-            elif num_nodes in ranges["med"]:
-                graph_group = 1
-            elif num_nodes in ranges["tail"]:
-                graph_group = 0
-            else:
-                assert False
-            if pred[idx].cpu().item() == data.y[idx].cpu().item():
-                graph_correct[graph_group] += 1
-            total_graphs[graph_group] += 1
+
+        head_idx = torch.where((data.org_nodes >= ranges['head'][1]) & (data.org_nodes <= ranges['head'][0]), 1, 0).nonzero().view(-1,)
+        med_idx = torch.where((data.org_nodes >= ranges['med'][1]) & (data.org_nodes <= ranges['med'][0]), 1, 0).nonzero().view(-1,)
+        tail_idx = torch.where((data.org_nodes >= ranges['tail'][1]) & (data.org_nodes <= ranges['tail'][0]), 1, 0).nonzero().view(-1,)
+        
+        # print(med_idx.shape[0] + head_idx.shape[0] + tail_idx.shape[0], data.org_nodes.shape[0])
+        assert med_idx.shape[0] + head_idx.shape[0] + tail_idx.shape[0] == data.org_nodes.shape[0]
+        
+        graph_correct[2] += pred[head_idx].eq(data.y[head_idx].view(-1)).sum().item()
+        graph_correct[1] += pred[med_idx].eq(data.y[med_idx].view(-1)).sum().item()
+        graph_correct[0] += pred[tail_idx].eq(data.y[tail_idx].view(-1)).sum().item()
+
+        total_graphs[2] += head_idx.shape[0]
+        total_graphs[1] += med_idx.shape[0]
+        total_graphs[0] += tail_idx.shape[0]
+
+
+        # for idx, num_nodes in enumerate(data.org_nodes):
+        #     if num_nodes in ranges["head"]:
+        #         graph_group = 2
+        #     elif num_nodes in ranges["med"]:
+        #         graph_group = 1
+        #     elif num_nodes in ranges["tail"]:
+        #         graph_group = 0
+        #     else:
+        #         assert False
+        #     if pred[idx].cpu().item() == data.y[idx].cpu().item():
+        #         graph_correct[graph_group] += 1
+        #     total_graphs[graph_group] += 1
         correct += pred.eq(data.y.view(-1)).sum().item()
     return (correct / len(loader.dataset),
             graph_correct[2] / total_graphs[2],
