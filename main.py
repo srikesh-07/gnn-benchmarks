@@ -26,10 +26,10 @@ parser.add_argument('--lr_decay_step_size', type=int, default=50)
 parser.add_argument('--size_strat', action='store_true')
 args = parser.parse_args()
 
-# layers = [1, 2, 3, 4, 5]
-# hiddens = [16, 32, 64, 128]
-layers = [2]
-hiddens = [64]
+layers = [1, 2, 3, 4, 5]
+hiddens = [16, 32, 64, 128]
+#layers = [2]
+#hiddens = [64]
 datasets = [
     "DD",
     "PROTEINS",
