@@ -62,7 +62,7 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
 
 
     for fold, (train_idx, test_idx,
-               val_idx) in enumerate(zip(*k_fold(dataset, folds))):
+               val_idx) in enumerate(zip(*k_fold(dataset, folds, split.categories))):
 
         train_dataset = dataset[train_idx]
         test_dataset = dataset[test_idx]
@@ -154,11 +154,11 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
         tail_acc_std
 
 
-def k_fold(dataset, folds):
+def k_fold(dataset, folds, y=None):
     skf = StratifiedKFold(folds, shuffle=True, random_state=12345)
 
     test_indices, train_indices = [], []
-    for _, idx in skf.split(torch.zeros(len(dataset)), dataset.data.y):
+    for _, idx in skf.split(torch.zeros(len(dataset)), y):
         test_indices.append(torch.from_numpy(idx).to(torch.long))
 
     val_indices = [test_indices[i - 1] for i in range(folds)]

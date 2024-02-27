@@ -31,7 +31,6 @@ class GraphCategorizer:
         self.equal_splits.append(self._get_max_min_count(sorted_nodes[category_size * 2:]))
 
         # self.equal_splits.sort(key=lambda x: x[-1], reverse=True)
-    
     @property
     def num_head_graphs(self):
       return self.equal_splits[0][-1]
@@ -49,3 +48,19 @@ class GraphCategorizer:
         return dict(head=self.equal_splits[0][0],
                     med=self.equal_splits[1][0],
                     tail=self.equal_splits[2][0])
+
+    @property
+    def categories(self):
+        categories = list()
+        for node in self.nodes:
+            if (node >= self.equal_splits[0][0]) and (node <= self.equal_splits[0][1]):
+                categories.append(0) #Head
+            elif (node >= self.equal_splits[1][0]) and (node <= self.equal_splits[1][1]):
+                categories.append(1) #Med
+            elif (node >= self.equal_splits[2][0]) and (node <= self.equal_splits[2][1]):
+                categories.append(2) #Tail
+            else:
+                assert False
+        return categories
+
+
