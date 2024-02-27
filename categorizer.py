@@ -53,14 +53,12 @@ class GraphCategorizer:
     def categories(self):
         categories = list()
         for node in self.nodes:
-            if (node >= self.equal_splits[0][0]) and (node <= self.equal_splits[0][1]):
+            if (node >= self.equal_splits[0][0][1]) and (node <= self.equal_splits[0][0][0]):
                 categories.append(0) #Head
-            elif (node >= self.equal_splits[1][0]) and (node <= self.equal_splits[1][1]):
+            elif (node >= self.equal_splits[1][0][1]) and (node <= self.equal_splits[1][0][0]):
                 categories.append(1) #Med
-            elif (node >= self.equal_splits[2][0]) and (node <= self.equal_splits[2][1]):
+            elif (node >= self.equal_splits[2][0][1]) and (node <= self.equal_splits[2][0][0]):
                 categories.append(2) #Tail
             else:
                 assert False
         return categories
-
-

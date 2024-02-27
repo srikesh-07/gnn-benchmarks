@@ -23,6 +23,7 @@ parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--lr_decay_factor', type=float, default=0.5)
 parser.add_argument('--lr_decay_step_size', type=int, default=50)
+parser.add_argument('--size_strat', action='store_true')
 args = parser.parse_args()
 
 # layers = [1, 2, 3, 4, 5]
@@ -32,8 +33,8 @@ hiddens = [64]
 datasets = [
     "DD",
     "PROTEINS",
-    "FRANKENSTEIN", 
-    "PTC_MR", 
+    "FRANKENSTEIN",
+    "PTC_MR",
     'IMDB-BINARY'
     'COLLAB',
     'obgb-molhiv'
@@ -92,6 +93,7 @@ for dataset_name, Net in product(datasets, nets):
             lr_decay_step_size=args.lr_decay_step_size,
             weight_decay=0,
             logger=logger,
+            size_strat=args.size_strat
         )
         with open("metrics.txt", "a") as txt_file:
             txt_file.write(f"Dataset: {dataset_name}, \n"

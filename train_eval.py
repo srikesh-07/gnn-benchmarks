@@ -21,8 +21,7 @@ else:
 
 def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
                                   lr, lr_decay_factor, lr_decay_step_size,
-                                  weight_decay, logger=None):
-
+                                  weight_decay, logger=None, size_strat=False):
     val_losses, accs, head_accs, med_accs, tail_accs, durations = [], [], [], [], [], []
 
     # if dataset.name == "PROTEINS":
@@ -60,6 +59,11 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
     print("NUM TAIL GRAPHS: ", split.num_tail_graphs)
     print("SIZE RANGES: ", split.size_ranges)
 
+    if size_strat:
+        y = split.categories
+        print("[INFO] Using Size Aware Stratified Split")
+    else:
+        y = dataset.data.y
 
     for fold, (train_idx, test_idx,
                val_idx) in enumerate(zip(*k_fold(dataset, folds, split.categories))):
@@ -130,7 +134,8 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
     head_acc, med_acc, tail_acc = tensor(head_accs), tensor(med_accs), tensor(tail_accs)
     loss, acc = loss.view(folds, epochs), acc.view(folds, epochs)
-    head_acc, med_acc, tail_acc = head_acc.view(folds, epochs), med_acc.view(folds, epochs), tail_acc.view(folds, epochs)
+    head_acc, med_acc, tail_acc = head_acc.view(folds, epochs), med_acc.view(folds, epochs), tail_acc.view(folds,
+                                                                                                           epochs)
     loss, argmin = loss.min(dim=1)
     acc = acc[torch.arange(folds, dtype=torch.long), argmin]
     head_acc = head_acc[torch.arange(folds, dtype=torch.long), argmin]
@@ -205,13 +210,16 @@ def eval_acc(model, loader, ranges):
         with torch.no_grad():
             pred = model(data).max(1)[1]
 
-        head_idx = torch.where((data.org_nodes >= ranges['head'][1]) & (data.org_nodes <= ranges['head'][0]), 1, 0).nonzero().view(-1,)
-        med_idx = torch.where((data.org_nodes >= ranges['med'][1]) & (data.org_nodes <= ranges['med'][0]), 1, 0).nonzero().view(-1,)
-        tail_idx = torch.where((data.org_nodes >= ranges['tail'][1]) & (data.org_nodes <= ranges['tail'][0]), 1, 0).nonzero().view(-1,)
-        
+        head_idx = torch.where((data.org_nodes >= ranges['head'][1]) & (data.org_nodes <= ranges['head'][0]), 1,
+                               0).nonzero().view(-1, )
+        med_idx = torch.where((data.org_nodes >= ranges['med'][1]) & (data.org_nodes <= ranges['med'][0]), 1,
+                              0).nonzero().view(-1, )
+        tail_idx = torch.where((data.org_nodes >= ranges['tail'][1]) & (data.org_nodes <= ranges['tail'][0]), 1,
+                               0).nonzero().view(-1, )
+
         # print(med_idx.shape[0] + head_idx.shape[0] + tail_idx.shape[0], data.org_nodes.shape[0])
         assert med_idx.shape[0] + head_idx.shape[0] + tail_idx.shape[0] == data.org_nodes.shape[0]
-        
+
         graph_correct[2] += pred[head_idx].eq(data.y[head_idx].view(-1)).sum().item()
         graph_correct[1] += pred[med_idx].eq(data.y[med_idx].view(-1)).sum().item()
         graph_correct[0] += pred[tail_idx].eq(data.y[tail_idx].view(-1)).sum().item()
@@ -219,7 +227,6 @@ def eval_acc(model, loader, ranges):
         total_graphs[2] += head_idx.shape[0]
         total_graphs[1] += med_idx.shape[0]
         total_graphs[0] += tail_idx.shape[0]
-
 
         # for idx, num_nodes in enumerate(data.org_nodes):
         #     if num_nodes in ranges["head"]:
