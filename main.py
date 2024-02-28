@@ -95,7 +95,8 @@ for dataset_name, Net in product(datasets, nets):
             logger=logger,
             size_strat=args.size_strat
         )
-        with open("metrics.txt", "a") as txt_file:
+        name = 'strat_metrics.txt' if args.size_strat else 'metrics.txt'
+        with open(name, "a") as txt_file:
             txt_file.write(f"Dataset: {dataset_name}, \n"
                            f"Model: {Net.__name__}, \n"
                            f"Num Layers: {num_layers}, \n"
