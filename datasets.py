@@ -1,5 +1,8 @@
 import copy
+import os
 import os.path as osp
+
+from tqdm import tqdm
 
 import torch
 import torch_geometric.data
@@ -24,7 +27,8 @@ class NormalizedDegree:
 
 def add_org_nodes(data: torch_geometric.data.Data):
     data.org_nodes = torch.tensor(data.num_nodes, dtype=torch.long)
-    data.x = data.x.to(torch.float32)
+    if data.x is not None:
+        data.x = data.x.to(torch.float32)
     return data
 
 
@@ -52,7 +56,7 @@ def convert_dataset(dataset, out_path):
         s += f"{tag} {len(edges)} {' '.join([str(edge) for edge in edges])}\n"
     
     with open(out_path, 'w') as txt_file:
-        txt_file.write(txt_file)
+        txt_file.write(s)
 
 
 def get_dataset(name, sparse=True, cleaned=False, save_data=False):
@@ -114,8 +118,9 @@ def get_dataset(name, sparse=True, cleaned=False, save_data=False):
             dataset.transform = T.Compose(
                 [dataset.transform, T.ToDense(num_nodes)])
 
-    if save_data:
+    print('[INFO] Saving the dataset (Custom Transformation)..')
+    if save_data and not os.path.isfile(os.path.join('dataset_trasnformed', name, f'{name}.txt')):
         os.makedirs(os.path.join("dataset_transformed", name), exist_ok=True)
-        convert_dataset(dataset, os.path.join('dataset_trasnformed', name, f'{name}.txt')))
+        convert_dataset(dataset, os.path.join('dataset_transformed', name, f'{name}.txt'))
 
     return dataset
