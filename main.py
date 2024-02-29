@@ -24,6 +24,7 @@ parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--lr_decay_factor', type=float, default=0.5)
 parser.add_argument('--lr_decay_step_size', type=int, default=50)
 parser.add_argument('--size_strat', action='store_true')
+parser.add_arguement('--save_transformed_data', action='store_true')
 args = parser.parse_args()
 
 layers = [1, 2, 3, 4, 5]
@@ -80,7 +81,7 @@ for dataset_name, Net in product(datasets, nets):
     best_result = (float('inf'), 0, 0)  # (loss, acc, std)
     print(f'--\n{dataset_name} - {Net.__name__}')
     for num_layers, hidden in product(layers, hiddens):
-        dataset = get_dataset(dataset_name, sparse=Net != DiffPool)
+        dataset = get_dataset(dataset_name, sparse=Net != DiffPool, save_dataset=args.save_transformed_data)
         model = Net(dataset, num_layers, hidden)
         loss, acc, std, head_acc, head_std, med_acc, med_std, tail_acc, tail_std = cross_validation_with_val_set(
             dataset,
