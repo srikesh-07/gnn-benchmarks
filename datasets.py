@@ -27,6 +27,7 @@ def add_org_nodes(data: torch_geometric.data.Data):
     data.x = data.x.to(torch.float32)
     return data
 
+
 def check_ogb(name, path, cleaned=False):
     if name.startswith('ogbg'):
         if not name.endswith('molhiv'):
@@ -37,7 +38,24 @@ def check_ogb(name, path, cleaned=False):
     return dataset
         
 
-def get_dataset(name, sparse=True, cleaned=False):
+def convert_dataset(dataset, out_path):
+    s= f"{len(dataset)}\n"
+
+    for g_idx in tqdm(range(len(dataset))):
+      s += f'{dataset[g_idx].num_nodes} {dataset[g_idx].y.item()}\n'
+      for n_idx in range(dataset[g_idx].num_nodes):
+        if hasattr(dataset, 'x') and dataset.x.shape[-1] != 0:
+          tag = dataset[g_idx].x[n_idx].nonzero().item()
+        else:
+          tag = 0
+        edges = dataset[g_idx].edge_index[1][dataset[g_idx].edge_index[0] == n_idx].tolist()
+        s += f"{tag} {len(edges)} {' '.join([str(edge) for edge in edges])}\n"
+    
+    with open(out_path, 'w') as txt_file:
+        txt_file.write(txt_file)
+
+
+def get_dataset(name, sparse=True, cleaned=False, save_data=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     dataset = check_ogb(name, path)
 
@@ -95,5 +113,9 @@ def get_dataset(name, sparse=True, cleaned=False):
         else:
             dataset.transform = T.Compose(
                 [dataset.transform, T.ToDense(num_nodes)])
+
+    if save_data:
+        os.makedirs(os.path.join("dataset_transformed", name), exist_ok=True)
+        convert_dataset(dataset, os.path.join('dataset_trasnformed', name, f'{name}.txt')))
 
     return dataset
